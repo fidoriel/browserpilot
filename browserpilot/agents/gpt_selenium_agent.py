@@ -14,7 +14,8 @@ from bs4 import BeautifulSoup
 from llama_index import Document, GPTVectorStoreIndex
 from llama_index import ServiceContext, LLMPredictor
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.relative_locator import locate_with
@@ -145,17 +146,17 @@ class GPTSeleniumAgent:
                 for option in browser_options:
                     options.add_argument(f"{option}={browser_options[option]}")
                 # Instantiate Service with the path to the chromedriver and the options.
-                service = Service(browser_driver_path)
-                self.driver = webdriver.Chrome(service=service, options=_chrome_options)
+                service = ChromeService(browser_driver_path)
+                self.driver = webdriver.Chrome(service=service, options=options)
             case "firefox":
                 options = FirefoxOptions()
-                driver = webdriver.Firefox
                 if not close_after_completion:
                     options.set_preference("detach", True)
+
+                service = FirefoxService(browser_driver_path)
+                self.driver = webdriver.Firefox(service=service, options=options)
             case _:
                 assert_never(browser)
-        service = Service(browser_driver_path)
-        self.driver = driver(service=service, options=options)
         # 🤫 Evade detection.
         self.driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"

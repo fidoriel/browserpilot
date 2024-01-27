@@ -2,6 +2,11 @@
 import pdb
 import os
 import re
+
+from typing_extensions import assert_never
+
+
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 import sys
 import time
 import traceback
@@ -16,7 +21,7 @@ from selenium.webdriver.support.relative_locator import locate_with
 from langchain.chat_models import ChatOpenAI
 from .compilers.instruction_compiler import InstructionCompiler
 from .memories import Memory
-from typing import Callable
+from typing import Callable, Literal
 from selenium.webdriver.remote.webelement import WebElement
 
 TIME_BETWEEN_ACTIONS = 0.01
@@ -56,7 +61,8 @@ class GPTSeleniumAgent:
         debug_html_folder="",
         instruction_output_file=None,
         close_after_completion=True,
-        additional_context: Callable[[webdriver.Firefox], str] | None = None
+        additional_context: Callable[[webdriver.Firefox], str] | None = None,
+        browser: Literal["firefox", "chrome"] = "firefox",
     ):
         """Initialize the agent.
 
@@ -119,25 +125,37 @@ class GPTSeleniumAgent:
             self.memory = Memory(memory_folder=self.memory_folder)
 
         """Set up the driver."""
-        _chrome_options = webdriver.ChromeOptions()
-        _chrome_options.add_argument(f"user-data-dir={user_data_dir}")
-        # 🤫 Evade detection.
-        # https://stackoverflow.com/questions/53039551/selenium-webdriver-modifying-navigator-webdriver-flag-to-prevent-selenium-detec
-        _chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        _chrome_options.add_experimental_option(
-            "excludeSwitches", ["enable-automation"]
-        )
-        _chrome_options.add_experimental_option("useAutomationExtension", False)
 
         self.headless = headless
-        if headless:
-            _chrome_options.add_argument("--headless")
-        for option in browser_options:
-            _chrome_options.add_argument(f"{option}={browser_options[option]}")
+        match browser:
+            case "chrome":
+                options = webdriver.ChromeOptions()
+                driver = webdriver.Chrome
+                options.add_argument(f"user-data-dir={user_data_dir}")
+                # 🤫 Evade detection.
+                # https://stackoverflow.com/questions/53039551/selenium-webdriver-modifying-navigator-webdriver-flag-to-prevent-selenium-detec
+                options.add_argument("--disable-blink-features=AutomationControlled")
+                options.add_experimental_option(
+                    "excludeSwitches", ["enable-automation"]
+                )
+                options.add_experimental_option("useAutomationExtension", False)
 
-        # Instantiate Service with the path to the chromedriver and the options.
-        service = Service()
-        self.driver = webdriver.Firefox(service=service)
+                if headless:
+                    options.add_argument("--headless")
+                for option in browser_options:
+                    options.add_argument(f"{option}={browser_options[option]}")
+                # Instantiate Service with the path to the chromedriver and the options.
+                service = Service(browser_driver_path)
+                self.driver = webdriver.Chrome(service=service, options=_chrome_options)
+            case "firefox":
+                options = FirefoxOptions()
+                driver = webdriver.Firefox
+                if not close_after_completion:
+                    options.set_preference("detach", True)
+            case _:
+                assert_never(browser)
+        service = Service(browser_driver_path)
+        self.driver = driver(service=service, options=options)
         # 🤫 Evade detection.
         self.driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"

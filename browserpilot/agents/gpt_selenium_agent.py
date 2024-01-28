@@ -224,10 +224,36 @@ class GPTSeleniumAgent:
         soup = self._remove_blacklisted_elements_and_attributes()
         # Remove children of elements that have children.
         elements = soup.find_all()
+        elements_with_listners = self.__elements_with_event_listners(elements)
         [ele.clear() if ele.contents else ele for ele in elements if ele.contents]
         # Then remove any elements that do not have attributes, e.g., <p></p>.
-        elements = [ele for ele in elements if ele.attrs]
+        elements = [ele for ele in elements if ele.attrs or (ele in elements_with_listners)]
         return elements
+    
+    def __elements_with_event_listners(self, elements) -> list:
+        print("Checking for event listeners")
+        script = open("event-collectors.js").readlines()
+
+        script += """
+            function hasEventListeners(element) {
+                const ec = new EventCollector(element);
+                const dbg = element.getParent().targetActor.makeDebugger();
+                cosnt hasListner = ec.hasEventListeners(element.rawNode, dbg);
+                dbg.destroy();
+                ec.destroy();
+                return hasListner;
+            }
+        """
+
+        with_listner = []
+        for element in elements:
+            has_listeners = self.driver.execute_script(script + "return hasEventListeners(arguments[0]);", element)
+            print(f"Element: {element.tag_name}, Has Listeners: {has_listeners}")
+            if has_listeners == "true":
+                with_listner.append(element)
+        
+        return with_listner
+        
 
     def __complete(self):
         """What to run when the agent is done."""
@@ -610,7 +636,7 @@ class GPTSeleniumAgent:
             return resp
         logger.error("Memory is disabled.")
 
-    def ask_llm_to_find_element(self, element_description):
+    def ask_llm_to_find_element(self, element_description: str) -> GPTWebElement | None:
         """Clean the HTML from self.driver, ask GPT-Index to find the element,
         and return Selenium code to access it. Return a GPTWebElement."""
 

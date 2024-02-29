@@ -2,34 +2,27 @@
 import os
 import pdb
 import re
-
-from typing_extensions import assert_never
-
-
-from selenium.webdriver.firefox.options import Options as FirefoxOptions
 import sys
 import time
 import traceback
-from typing import Callable
+from typing import Callable, Literal
 
 from bs4 import BeautifulSoup
 from langchain.chat_models import ChatOpenAI
 from llama_index.core import Document, GPTVectorStoreIndex, ServiceContext
 from llama_index.core.service_context import LLMPredictor
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.relative_locator import locate_with
+from typing_extensions import assert_never
 
 from .compilers.instruction_compiler import InstructionCompiler
 from .memories import Memory
-from typing import Callable, Literal
-from selenium.webdriver.remote.webelement import WebElement
 
 TIME_BETWEEN_ACTIONS = 0.01
 
